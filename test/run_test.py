@@ -655,7 +655,7 @@ def run_large_test(test_module, test_directory, options):
         log_fd, log_path = tempfile.mkstemp()
         return_code = pool.apply_async(run_test, args=(test_module, test_directory, copy.deepcopy(options)),
                                        kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
-                                                                     f'--shard-id={i}', f'--num-shards={num_procs}'],
+                                                                     f'--shard-id={i+1}', f'--num-shards={num_procs}'],
                                              "log_file_fd": log_fd
                                              })
         file_names.append(log_path)
