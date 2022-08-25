@@ -367,7 +367,7 @@ def get_log_file_name(test):
 
 
 def run_test(
-    test_module, test_directory, options, launcher_cmd=None, extra_unittest_args=None, log_to_file=False,
+    test_module, test_directory, options, launcher_cmd=None, extra_unittest_args=None, log_file_fd=None,
 ):
     unittest_args = options.additional_unittest_args.copy()
     if options.verbose:
@@ -398,9 +398,8 @@ def run_test(
 
     command = (launcher_cmd or []) + executable + argv
     print_to_stderr("Executing {} ... [{}]".format(command, datetime.now()))
-    if log_to_file:
-        with open(get_log_file_name(test_module), "w") as f:
-            return shell(command, test_directory, stdout=f, stderr=f)
+    if log_file_fd is not None:
+        return shell(command, test_directory, stdout=log_file_fd, stderr=log_file_fd)
     return shell(command, test_directory)
 
 
@@ -638,6 +637,39 @@ def run_doctests(test_module, test_directory, options):
         command=options.xdoctest_command, argv=[])
     result = 1 if run_summary.get('n_failed', 0) else 0
     return result
+def print_log_file(test, file_path):
+    with open(file_path, "r") as f:
+        print(f'##[group]PRINT LOG FILE of {test} ({file_path})')
+        print(f.read())
+        print('##[endgroup]')
+        print(f"FINISHED PRINT LOG FILE of {test} ({file_path})")
+    os.remove(file_path)
+
+
+def run_large_test(test_module, test_directory, options):
+    file_names = []
+    return_codes = []
+    num_procs = 4
+    pool = mp.Pool(num_procs)
+    for i in range(num_procs):
+        log_fd, log_path = tempfile.mkstemp()
+        return_code = pool.apply_async(run_test, args=(test_module, test_directory, copy.deepcopy(options)),
+                                       kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
+                                                                     f'--shard-id={i}', f'--num-shards={num_procs}'],
+                                             "log_file_fd": log_fd
+                                             })
+        file_names.append(log_path)
+        return_codes.append(return_code)
+    pool.close()
+    pool.join()
+    for log_file in file_names:
+        print_log_file(test_module, log_file)
+
+    for return_code in return_codes:
+        if return_code != 0:
+            return return_code
+
+    return 0
 
 
 CUSTOM_HANDLERS = {
@@ -659,6 +691,9 @@ CUSTOM_HANDLERS = {
     "distributed/rpc/test_share_memory": get_run_test_with_subprocess_fn(),
     "distributed/rpc/cuda/test_tensorpipe_agent": get_run_test_with_subprocess_fn(),
     "doctests": run_doctests,
+    "test_ops": run_large_test,
+    "test_ops_gradients": run_large_test,
+    "test_ops_jit": run_large_test,
 }
 
 
@@ -1013,14 +1048,14 @@ def get_selected_tests(options):
     return selected_tests
 
 
-def run_test_module(test: str, test_directory: str, options, log_to_file: bool = False) -> Optional[str]:
+def run_test_module(test: str, test_directory: str, options, file_log_fd=None) -> Optional[str]:
     test_module = parse_test_module(test)
 
     # Printing the date here can help diagnose which tests are slow
     print_to_stderr("Running {} ... [{}]".format(test, datetime.now()))
     handler = CUSTOM_HANDLERS.get(test_module, run_test)
-    if log_to_file and handler == run_test:
-        return_code = handler(test_module, test_directory, options, log_to_file=log_to_file)
+    if file_log_fd is not None and handler == run_test:
+        return_code = handler(test_module, test_directory, options, file_log_fd=file_log_fd)
     else:
         return_code = handler(test_module, test_directory, options)
     assert isinstance(return_code, int) and not isinstance(
@@ -1038,29 +1073,20 @@ def run_test_module(test: str, test_directory: str, options, log_to_file: bool =
     return message
 
 
-def print_log_file(test):
-    log_file = get_log_file_name(test)
-    with open(log_file, "r") as f:
-        print(f'##[group]PRINT LOG FILE of {test} ({log_file})')
-        print(f.read())
-        print('##[endgroup]')
-        print(f"FINISHED PRINT LOG FILE of {test} ({log_file})")
-    os.remove(log_file)
-
-
 def mp_run_test_module(test_tasks: mp.Queue, ret_queue: mp.Queue, abort_queue: mp.Queue, test_directory, options):
     try:
         while abort_queue.empty():
             test = test_tasks.get_nowait()
-            message = run_test_module(test, test_directory, options, log_to_file=True)
-            ret_queue.put_nowait((test, message))
+            log_fd, log_path = tempfile.mkstemp()
+            message = run_test_module(test, test_directory, options, log_file_fd=log_fd)
+            ret_queue.put_nowait((test, message, log_path))
     except queue.Empty as e:
         return
 
 
 def handle_test_completion(ret_queue: mp.Queue, abort_queue: mp.Queue, failure_messages, continue_through_error):
-    test, err_message = ret_queue.get()
-    print_log_file(test)
+    test, err_message, log_file_path = ret_queue.get()
+    print_log_file(test, log_file_path)
     if err_message is None:
         return True
     failure_messages.append(err_message)
