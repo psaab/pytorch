@@ -760,7 +760,7 @@ def run_tests(argv=UNITTEST_ARGS):
             pytest_report_path = test_report_path.replace('python-unittest', 'python-pytest')
             os.makedirs(pytest_report_path, exist_ok=True)
             # part of our xml parsing looks for grandparent folder names
-            pytest_report_path = os.path.join(pytest_report_path, f"{test_filename}.xml")
+            pytest_report_path = os.path.join(pytest_report_path, f"{test_filename}-{os.urandom(8).hex()}.xml")
             print(f'Test results will be stored in {pytest_report_path}')
             # mac slower on 4 proc than 3
             num_procs = 3 if "macos" in build_environment else 4

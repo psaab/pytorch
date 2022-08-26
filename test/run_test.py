@@ -661,7 +661,8 @@ def run_large_test(test_module, test_directory, options):
         log_fd, file_path = tempfile.mkstemp()
         return_code = pool.apply_async(run_test, args=(test_module, test_directory, copy.deepcopy(options)),
                                        kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
-                                                                     f'--shard-id={i}', f'--num-shards={num_procs}'],
+                                                                     f'--shard-id={i}', f'--num-shards={num_procs}',
+                                                                     "-k=not _lu_ and not _ldl_solve_"],
                                              "log_file": file_path
                                              })
         file_names.append(file_path)
@@ -674,8 +675,14 @@ def run_large_test(test_module, test_directory, options):
     for return_code in return_codes:
         if return_code.get() != 0:
             return return_code.get()
+    return_code = run_test(args=(test_module, test_directory, copy.deepcopy(options)),
+                           kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
+                                                         f'--shard-id={i}', f'--num-shards={num_procs}',
+                                                         "-k=_lu_ or _ldl_solve_", "-p=no:pytest-shard"],
+                                 "log_file": file_path
+                                 })
 
-    return 0
+    return return_code
 
 
 CUSTOM_HANDLERS = {
@@ -700,6 +707,8 @@ CUSTOM_HANDLERS = {
     "test_ops": run_large_test,
     "test_ops_gradients": run_large_test,
     "test_ops_jit": run_large_test,
+
+
 }
 
 
@@ -930,7 +939,7 @@ def must_serial(file: str) -> bool:
     else:
         return file in ['test_nn', 'test_fake_tensor', 'test_cpp_api_parity', 'test_jit_cuda_fuser', 'test_reductions',
                         'test_cuda', 'test_indexing', 'test_fx_backends', 'test_linalg', 'test_cpp_extensions_jit',
-                        'test_torch', 'test_tensor_creation_ops', 'test_sparse_csr', 'test_dispatch']
+                        'test_torch', 'test_tensor_creation_ops', 'test_sparse_csr', 'test_dispatch', 'nn.test_pooling']
 
 
 def get_selected_tests(options):
