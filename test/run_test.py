@@ -677,7 +677,7 @@ def run_large_test(test_module, test_directory, options):
             return return_code.get()
     return_code = run_test(test_module, test_directory, copy.deepcopy(options),
                            extra_unittest_args=["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
-                                                "-k=_lu_ or _ldl_solve_", "-p=no:pytest-shard"],
+                                                "-k=_lu_ or _ldl_solve_"],
                            )
 
     return return_code
