@@ -675,12 +675,12 @@ def run_large_test(test_module, test_directory, options):
     for return_code in return_codes:
         if return_code.get() != 0:
             return return_code.get()
-    return_code = run_test(args=(test_module, test_directory, copy.deepcopy(options)),
-                           kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
-                                                         f'--shard-id={i}', f'--num-shards={num_procs}',
-                                                         "-k=_lu_ or _ldl_solve_", "-p=no:pytest-shard"],
-                                 "log_file": file_path
-                                 })
+    return_code = run_test(test_module, test_directory, copy.deepcopy(options),
+                           extra_unittest_args=["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
+                                                f'--shard-id={i}', f'--num-shards={num_procs}',
+                                                "-k=_lu_ or _ldl_solve_", "-p=no:pytest-shard"],
+                           log_file=file_path
+                           )
 
     return return_code
 
