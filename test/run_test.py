@@ -367,7 +367,7 @@ def get_log_file_name(test):
 
 
 def run_test(
-    test_module, test_directory, options, launcher_cmd=None, extra_unittest_args=None, log_file_fd=None,
+    test_module, test_directory, options, launcher_cmd=None, extra_unittest_args=None, log_file=None,
 ) -> int:
     unittest_args = options.additional_unittest_args.copy()
     if options.verbose:
@@ -398,8 +398,9 @@ def run_test(
 
     command = (launcher_cmd or []) + executable + argv
     print_to_stderr("Executing {} ... [{}]".format(command, datetime.now()))
-    if log_file_fd is not None:
-        return shell(command, test_directory, stdout=log_file_fd, stderr=log_file_fd)
+    if log_file is not None:
+        with open(log_file, "w") as f:
+            return shell(command, test_directory, stdout=f, stderr=f)
     return shell(command, test_directory)
 
 
@@ -637,12 +638,16 @@ def run_doctests(test_module, test_directory, options):
         command=options.xdoctest_command, argv=[])
     result = 1 if run_summary.get('n_failed', 0) else 0
     return result
+
+
 def print_log_file(test, file_path):
     with open(file_path, "r") as f:
+        print()
         print(f'##[group]PRINT LOG FILE of {test} ({file_path})')
         print(f.read())
         print('##[endgroup]')
         print(f"FINISHED PRINT LOG FILE of {test} ({file_path})")
+        print()
     os.remove(file_path)
 
 
@@ -650,15 +655,16 @@ def run_large_test(test_module, test_directory, options):
     file_names = []
     return_codes = []
     num_procs = 4
+    subprocess.run(["python", "-m", "pip", "install", "pytest-shard"])
     pool = mp.Pool(num_procs)
     for i in range(num_procs):
-        log_fd, log_path = tempfile.mkstemp()
+        log_fd, file_path = tempfile.mkstemp()
         return_code = pool.apply_async(run_test, args=(test_module, test_directory, copy.deepcopy(options)),
                                        kwds={"extra_unittest_args": ["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
                                                                      f'--shard-id={i}', f'--num-shards={num_procs}'],
-                                             "log_file_fd": log_fd
+                                             "log_file": file_path
                                              })
-        file_names.append(log_path)
+        file_names.append(file_path)
         return_codes.append(return_code)
     pool.close()
     pool.join()
@@ -1048,14 +1054,14 @@ def get_selected_tests(options):
     return selected_tests
 
 
-def run_test_module(test: str, test_directory: str, options, log_file_fd=None) -> Optional[str]:
+def run_test_module(test: str, test_directory: str, options, log_file=None) -> Optional[str]:
     test_module = parse_test_module(test)
 
     # Printing the date here can help diagnose which tests are slow
     print_to_stderr("Running {} ... [{}]".format(test, datetime.now()))
     handler = CUSTOM_HANDLERS.get(test_module, run_test)
-    if log_file_fd is not None and handler == run_test:
-        return_code = handler(test_module, test_directory, options, log_file_fd=log_file_fd)
+    if log_file is not None and handler == run_test:
+        return_code = handler(test_module, test_directory, options, log_file=log_file)
     else:
         return_code = handler(test_module, test_directory, options)
     assert isinstance(return_code, int) and not isinstance(
@@ -1078,7 +1084,7 @@ def mp_run_test_module(test_tasks: mp.Queue, ret_queue: mp.Queue, abort_queue: m
         while abort_queue.empty():
             test = test_tasks.get_nowait()
             log_fd, log_path = tempfile.mkstemp()
-            message = run_test_module(test, test_directory, options, log_file_fd=log_fd)
+            message = run_test_module(test, test_directory, options, log_file=log_fd)
             ret_queue.put_nowait((test, message, log_path))
     except queue.Empty as e:
         return
