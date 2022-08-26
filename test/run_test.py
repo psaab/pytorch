@@ -1048,14 +1048,14 @@ def get_selected_tests(options):
     return selected_tests
 
 
-def run_test_module(test: str, test_directory: str, options, file_log_fd=None) -> Optional[str]:
+def run_test_module(test: str, test_directory: str, options, log_file_fd=None) -> Optional[str]:
     test_module = parse_test_module(test)
 
     # Printing the date here can help diagnose which tests are slow
     print_to_stderr("Running {} ... [{}]".format(test, datetime.now()))
     handler = CUSTOM_HANDLERS.get(test_module, run_test)
-    if file_log_fd is not None and handler == run_test:
-        return_code = handler(test_module, test_directory, options, file_log_fd=file_log_fd)
+    if log_file_fd is not None and handler == run_test:
+        return_code = handler(test_module, test_directory, options, log_file_fd=log_file_fd)
     else:
         return_code = handler(test_module, test_directory, options)
     assert isinstance(return_code, int) and not isinstance(
