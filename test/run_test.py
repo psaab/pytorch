@@ -368,7 +368,7 @@ def get_log_file_name(test):
 
 def run_test(
     test_module, test_directory, options, launcher_cmd=None, extra_unittest_args=None, log_file_fd=None,
-):
+) -> int:
     unittest_args = options.additional_unittest_args.copy()
     if options.verbose:
         unittest_args.append(f'-{"v"*options.verbose}')  # in case of pytest
@@ -666,8 +666,8 @@ def run_large_test(test_module, test_directory, options):
         print_log_file(test_module, log_file)
 
     for return_code in return_codes:
-        if return_code != 0:
-            return return_code
+        if return_code.get() != 0:
+            return return_code.get()
 
     return 0
 
