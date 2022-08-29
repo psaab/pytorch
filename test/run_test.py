@@ -648,6 +648,7 @@ def print_log_file(test, file_path):
         print('##[endgroup]')
         print(f"FINISHED PRINT LOG FILE of {test} ({file_path})")
         print()
+        sys.stdout.flush()
     os.remove(file_path)
 
 
