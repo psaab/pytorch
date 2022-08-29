@@ -669,6 +669,7 @@ def run_large_test(test_module, test_directory, options):
                                              })
         file_names.append(file_path)
         return_codes.append(return_code)
+        os.close(log_fd)
     pool.close()
     pool.join()
     del os.environ['PARALLEL_TESTING']
