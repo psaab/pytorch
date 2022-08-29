@@ -795,7 +795,7 @@ def convert(
     # TODO: maybe move this to quantize_fx.py
     if not is_reference:
         model = lower_to_fbgemm(model, qconfig_map, node_name_to_scope)
-        model = remove_quant_dequant_pairs(model)
+        #model = remove_quant_dequant_pairs(model)
     # TODO: this looks hacky, we want to check why we need this and see if we can
     # remove this
     # removes qconfig and activation_post_process modules
