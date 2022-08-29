@@ -652,6 +652,7 @@ def print_log_file(test, file_path):
 
 
 def run_large_test(test_module, test_directory, options):
+    os.environ["PARALLEL_TESTING"] = "1"
     file_names = []
     return_codes = []
     num_procs = 4
@@ -679,7 +680,7 @@ def run_large_test(test_module, test_directory, options):
                            extra_unittest_args=["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
                                                 "-k=_lu_ or _ldl_solve_"],
                            )
-
+    del os.environ['PARALLEL_TESTING']
     return return_code
 
 
@@ -705,8 +706,6 @@ CUSTOM_HANDLERS = {
     "test_ops": run_large_test,
     "test_ops_gradients": run_large_test,
     "test_ops_jit": run_large_test,
-
-
 }
 
 
@@ -930,6 +929,7 @@ def must_serial(file: str) -> bool:
     if (
         file in CUSTOM_HANDLERS or
         "distributed" in os.getenv("TEST_CONFIG", "") or
+        "functorch" in os.getenv("TEST_CONFIG", "") or
         file in RUN_PARALLEL_BLOCKLIST or
         "distributed" in file
     ):
@@ -937,7 +937,7 @@ def must_serial(file: str) -> bool:
     else:
         return file in ['test_nn', 'test_fake_tensor', 'test_cpp_api_parity', 'test_jit_cuda_fuser', 'test_reductions',
                         'test_cuda', 'test_indexing', 'test_fx_backends', 'test_linalg', 'test_cpp_extensions_jit',
-                        'test_torch', 'test_tensor_creation_ops', 'test_sparse_csr', 'test_dispatch', 'nn.test_pooling']
+                        'test_torch', 'test_tensor_creation_ops', 'test_sparse_csr', 'test_dispatch', 'nn/test_pooling']
 
 
 def get_selected_tests(options):
