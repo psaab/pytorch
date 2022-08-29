@@ -642,12 +642,12 @@ def run_doctests(test_module, test_directory, options):
 
 def print_log_file(test, file_path):
     with open(file_path, "r") as f:
-        print()
-        print(f'##[group]PRINT LOG FILE of {test} ({file_path})')
-        print(f.read())
-        print('##[endgroup]')
-        print(f"FINISHED PRINT LOG FILE of {test} ({file_path})")
-        print()
+        print_to_stderr()
+        print_to_stderr(f'##[group]PRINT LOG FILE of {test} ({file_path})')
+        print_to_stderr(f.read())
+        print_to_stderr('##[endgroup]')
+        print_to_stderr(f"FINISHED PRINT LOG FILE of {test} ({file_path})")
+        print_to_stderr()
         sys.stdout.flush()
     os.remove(file_path)
 
