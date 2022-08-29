@@ -652,11 +652,11 @@ def print_log_file(test, file_path):
 
 
 def run_large_test(test_module, test_directory, options):
-    os.environ["PARALLEL_TESTING"] = "1"
+    subprocess.run(["python", "-m", "pip", "install", "pytest-shard"])
     file_names = []
     return_codes = []
     num_procs = 4
-    subprocess.run(["python", "-m", "pip", "install", "pytest-shard"])
+    os.environ["PARALLEL_TESTING"] = "1"
     pool = mp.Pool(num_procs)
     for i in range(num_procs):
         log_fd, file_path = tempfile.mkstemp()
@@ -670,6 +670,8 @@ def run_large_test(test_module, test_directory, options):
         return_codes.append(return_code)
     pool.close()
     pool.join()
+    del os.environ['PARALLEL_TESTING']
+
     for log_file in file_names:
         print_log_file(test_module, log_file)
 
@@ -680,7 +682,6 @@ def run_large_test(test_module, test_directory, options):
                            extra_unittest_args=["--use-pytest", '-vv', '-x', '--reruns=2', '-rfEX',
                                                 "-k=_lu_ or _ldl_solve_"],
                            )
-    del os.environ['PARALLEL_TESTING']
     return return_code
 
 
