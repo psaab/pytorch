@@ -5917,6 +5917,7 @@ class TestQuantizeFxOps(QuantizationTestCase):
             ns.call_function(torch.quantize_per_tensor): 1,
             ns.call_function(torch.ops.quantized.linear): 1,
             ns.call_function(torch.ops.quantized.layer_norm): 1,
+            ns.call_function(torch.quantize_per_channel): 1,
             ns.call_method("dequantize"): 2,
         }
 
